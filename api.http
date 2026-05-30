@@ -1,0 +1,181 @@
+@baseUrl = http://localhost:4000
+@contentType = application/json
+
+### Health check
+GET {{baseUrl}}/health
+
+### Readiness check
+GET {{baseUrl}}/ready
+
+### List published articles
+GET {{baseUrl}}/articles
+
+### List corruption cases
+GET {{baseUrl}}/corruption-cases
+
+### Filter corruption cases by year/person/category/tag
+GET {{baseUrl}}/corruption-cases?year=2026&personSlug=kemsa-covid-19-procurement-file&category=Investigations&tag=audit&limit=10&offset=0
+
+### Search corruption cases
+GET {{baseUrl}}/corruption-cases/search?q=kemsa
+
+### Related corruption cases
+GET {{baseUrl}}/corruption-cases/related?slug=kemsa-covid-19-procurement-audit&limit=4
+
+### Get corruption case by slug
+GET {{baseUrl}}/corruption-cases/kemsa-covid-19-procurement-audit
+
+### Get corruption case views
+GET {{baseUrl}}/corruption-cases/kemsa-covid-19-procurement-audit/views
+
+### Record corruption case view
+POST {{baseUrl}}/corruption-cases/kemsa-covid-19-procurement-audit/views
+
+### Corruption case key finding
+GET {{baseUrl}}/corruption-cases/kemsa-covid-19-procurement-audit/key-finding
+
+### Corruption case sources
+GET {{baseUrl}}/corruption-cases/kemsa-covid-19-procurement-audit/sources
+
+### List published articles with pagination
+GET {{baseUrl}}/articles?limit=20&offset=0
+
+### Filter articles by year/person/category/tag
+GET {{baseUrl}}/articles?year=2026&personSlug=example-person&category=Procurement&tag=audit&limit=10&offset=0
+
+### Search articles
+GET {{baseUrl}}/articles/search?q=corruption
+
+### Related articles
+GET {{baseUrl}}/articles/related?slug=example-slug&limit=4
+
+### Related articles for a person
+GET {{baseUrl}}/articles/related?personId=PERSON_ID&limit=4
+
+### Related articles for a person slug
+GET {{baseUrl}}/articles/related?personSlug=example-person&limit=4
+
+### Get article by slug
+GET {{baseUrl}}/articles/example-slug
+
+### Get article views
+GET {{baseUrl}}/articles/example-slug/views
+
+### Record article view
+POST {{baseUrl}}/articles/example-slug/views
+
+### Article key finding
+GET {{baseUrl}}/articles/example-slug/key-finding
+
+### Article sources
+GET {{baseUrl}}/articles/example-slug/sources
+
+### Submit article (guest)
+POST {{baseUrl}}/articles
+Content-Type: {{contentType}}
+
+{
+  "title": "Investigative Report: Example",
+  "subtitle": "Inside the audit trail",
+  "excerpt": "A short summary that is at least 20 chars.",
+  "content": "Long-form content that is at least 200 characters. This sample repeats enough detail to satisfy validation. It explains the case, provides context, lists evidence, and includes multiple sentences so the total length exceeds the minimum required by the API.",
+  "featuredImage": "https://example.com/image.jpg",
+  "images": ["https://example.com/image2.jpg"],
+  "category": "Investigations",
+  "subCategory": "Finance",
+  "tags": ["kenya", "audit"],
+  "sources": [
+    {
+      "title": "Court Filing",
+      "url": "https://example.com/source",
+      "description": "Filed on date.",
+      "type": "document"
+    }
+  ],
+  "isBreaking": false,
+  "isFeatured": false,
+  "isSponsored": false,
+  "pseudonym": "Anon-Reporter",
+  "password": "ChangeMe123!"
+}
+
+### List comments for an article
+GET {{baseUrl}}/comments/articles/ARTICLE_ID
+
+### Submit comment (guest)
+POST {{baseUrl}}/comments/articles/ARTICLE_ID
+Content-Type: {{contentType}}
+
+{
+  "content": "This is a comment with sources.",
+  "sources": [
+    {
+      "title": "Report",
+      "url": "https://example.com/report",
+      "description": "Relevant report.",
+      "type": "report"
+    }
+  ],
+  "pseudonym": "Anon-Reader",
+  "password": "ChangeMe123!"
+}
+
+### List corrupt persons
+GET {{baseUrl}}/persons
+
+### List corrupt persons with pagination
+GET {{baseUrl}}/persons?limit=50&offset=0
+
+### Get corrupt person by slug
+GET {{baseUrl}}/persons/example-person
+
+### List cases for a person
+GET {{baseUrl}}/cases/persons/6a0cff5493e8355c0a1e84d3
+
+### Leaderboard
+GET {{baseUrl}}/leaderboard?range=all&limit=10
+
+### Leaderboard by range
+GET {{baseUrl}}/leaderboard?range=week&limit=10
+
+### Current weekly poll
+GET {{baseUrl}}/polls/current
+
+### Submit vote
+POST {{baseUrl}}/polls/POLL_ID/votes
+Content-Type: {{contentType}}
+
+{
+  "optionId": "PERSON_ID",
+  "pseudonym": "Anon-Voter"
+}
+
+### News ticker
+GET {{baseUrl}}/ticker
+
+### Evidence trail
+GET {{baseUrl}}/evidence/trail
+
+### Content blocks
+GET {{baseUrl}}/content/blocks?keys=polls.methodology,article.keyFinding.example-slug
+
+### About page content
+GET {{baseUrl}}/content/pages/about
+
+### Site config
+GET {{baseUrl}}/content/site
+
+### Money analytics
+GET {{baseUrl}}/analytics/money
+
+### Case analytics
+GET {{baseUrl}}/analytics/cases
+
+### Stalled project analytics
+GET {{baseUrl}}/analytics/projects
+
+### List stalled projects
+GET {{baseUrl}}/projects/stalled?status=stalled&limit=20
+
+### Get stalled project by slug
+GET {{baseUrl}}/projects/stalled/arror-kimwarer-multipurpose-dams
