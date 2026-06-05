@@ -7,16 +7,20 @@ export const getCurrentPoll = async () =>
 
 export const submitVote = async (payload: {
   pollId: string;
-  personId: string;
+  optionId: string;
+  personId?: string;
   voterId?: string | Types.ObjectId;
   voterPseudonym: string;
   ipHash: string;
 }) => PollVoteModel.create(payload);
 
-export const closePoll = async (pollId: string, resultPersonId: string, totalVotes: number) =>
+export const closePoll = async (
+  pollId: string,
+  payload: { resultOptionId?: string; resultPersonId?: string; totalVotes?: number }
+) =>
   WeeklyPollModel.findByIdAndUpdate(
     pollId,
-    { status: "closed", resultPersonId, totalVotes },
+    { status: "closed", ...payload },
     { new: true }
   );
 
@@ -30,6 +34,25 @@ export const updatePoll = async (
     weekStart: Date;
     weekEnd: Date;
     status: "open" | "closed" | "processing";
+    kind: "profiles" | "custom";
     personIds: string[];
+    options: Array<{
+      optionId: string;
+      label: string;
+      description?: string;
+      personId?: string;
+      imageUrl?: string;
+      votes?: number;
+      sortOrder?: number;
+    }>;
+    totalVotes: number;
+    resultOptionId: string;
+    resultPersonId: string;
   }>
 ) => WeeklyPollModel.findByIdAndUpdate(pollId, payload, { new: true, runValidators: true });
+
+export const listPollVotes = async (pollId: string, limit = 200) =>
+  PollVoteModel.find({ pollId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
