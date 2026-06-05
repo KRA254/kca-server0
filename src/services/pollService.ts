@@ -2,8 +2,22 @@ import { Types } from "mongoose";
 import { WeeklyPollModel } from "../models/weeklyPoll";
 import { PollVoteModel } from "../models/pollVote";
 
-export const getCurrentPoll = async () =>
-  WeeklyPollModel.findOne({ status: "open" }).sort({ weekStart: -1 }).lean();
+export const getCurrentPoll = async () => {
+  const now = new Date();
+  const activeWindowPoll = await WeeklyPollModel.findOne({
+    status: "open",
+    weekStart: { $lte: now },
+    weekEnd: { $gte: now },
+  })
+    .sort({ weekStart: -1, createdAt: -1, _id: -1 })
+    .lean();
+
+  if (activeWindowPoll) return activeWindowPoll;
+
+  return WeeklyPollModel.findOne({ status: "open" })
+    .sort({ weekStart: -1, createdAt: -1, _id: -1 })
+    .lean();
+};
 
 export const submitVote = async (payload: {
   pollId: string;
