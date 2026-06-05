@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { cacheMiddleware } from "../middleware/cache";
 import { pollVoteRateLimitMiddleware } from "../middleware/rateLimit";
 import { validateBody } from "../middleware/validate";
 import { WeeklyPollModel } from "../../models/weeklyPoll";
@@ -18,7 +17,10 @@ const voteSchema = z.object({
 
 export const pollsRouter = new Hono();
 
-pollsRouter.get("/current", cacheMiddleware(), async (c) => {
+pollsRouter.get("/current", async (c) => {
+  c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  c.header("Pragma", "no-cache");
+  c.header("Expires", "0");
   const poll = await getCurrentPoll();
   if (!poll) {
     return c.json(null);
@@ -27,6 +29,7 @@ pollsRouter.get("/current", cacheMiddleware(), async (c) => {
 });
 
 pollsRouter.post("/:pollId/votes", pollVoteRateLimitMiddleware, validateBody(voteSchema), async (c) => {
+  c.header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   const body = c.get("validatedBody") as z.infer<typeof voteSchema>;
   const optionId = body.optionId ?? body.personId;
   if (!optionId) {
