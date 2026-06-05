@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
 import { PollVoteModel } from "../models/pollVote";
 import { CorruptPersonModel } from "../models/corruptPerson";
+import { WeeklyPollModel } from "../models/weeklyPoll";
 
 type PollDoc = Record<string, any>;
 type PollOption = {
@@ -11,8 +12,15 @@ type PollOption = {
   imageUrl?: string;
   votes: number;
 };
+type VoteCountItem = {
+  optionId?: string | null;
+  personId?: Types.ObjectId | null;
+};
 
 export const serializePoll = async (poll: PollDoc) => {
+  const freshPoll = await WeeklyPollModel.findById(poll._id).lean();
+  if (freshPoll) poll = freshPoll;
+
   const personIds: string[] = (poll.personIds ?? []).map((id: { toString: () => string }) =>
     id.toString()
   );
@@ -20,14 +28,29 @@ export const serializePoll = async (poll: PollDoc) => {
     .map((option: { personId?: { toString: () => string } }) => option.personId?.toString())
     .filter(Boolean);
   const allPersonIds = [...new Set([...personIds, ...optionPersonIds])];
-  const counts = await PollVoteModel.aggregate<{ _id: string | Types.ObjectId; votes: number }>([
-    { $match: { pollId: new Types.ObjectId(poll._id) } },
-    { $group: { _id: { $ifNull: ["$optionId", "$personId"] }, votes: { $sum: 1 } } },
-  ]);
-  const countMap = new Map(counts.map((entry) => [entry._id.toString(), entry.votes]));
+  const voteDocs = await PollVoteModel.find({ pollId: new Types.ObjectId(poll._id) })
+    .select("optionId personId")
+    .lean<VoteCountItem[]>();
+  const countMap = voteDocs.reduce<Map<string, number>>((map, vote) => {
+    const key = vote.optionId ?? vote.personId?.toString();
+    if (!key) return map;
+    map.set(key, (map.get(key) ?? 0) + 1);
+    return map;
+  }, new Map<string, number>());
   const persons = await CorruptPersonModel.find({ _id: { $in: allPersonIds } }).lean();
   const personMap = new Map(persons.map((person) => [person._id.toString(), person]));
-  const storedOptions = [...(poll.options ?? [])].sort(
+  const storedOptions = [...new Map(
+    [...(poll.options ?? [])]
+      .sort((a: { sortOrder?: number }, b: { sortOrder?: number }) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      .map((option: any, index) => {
+        const optionId = option.optionId ?? option.personId?.toString?.() ?? `option-${index + 1}`;
+        return [optionId, {
+          ...option,
+          optionId,
+          votes: Number(option.votes ?? 0),
+        }];
+      })
+  ).values()].sort(
     (a: { sortOrder?: number }, b: { sortOrder?: number }) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
   );
   const options: PollOption[] = storedOptions.length
