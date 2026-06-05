@@ -11,19 +11,19 @@ import { resolveUser, touchUserActivity } from "../../services/userService";
 import { serializeStalledProject } from "../../services/serializers";
 
 const sourceSchema = z.object({
-  title: z.string().min(2),
-  url: z.string().url(),
+  title: z.string().optional().default(""),
+  url: z.string().optional().default(""),
   description: z.string().optional(),
-  type: z.string().min(2),
+  type: z.string().optional().default("Source"),
 });
 
 const projectSubmitSchema = z.object({
-  name: z.string().min(3),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  description: z.string().min(20).max(2000),
+  name: z.string().max(220).optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
+  description: z.string().max(2000).optional().or(z.literal("")),
   details: z.string().optional(),
   county: z.string().optional(),
-  sector: z.string().min(2),
+  sector: z.string().optional().default("Unknown"),
   status: z.enum(["stalled", "abandoned", "delayed", "under_review", "completed", "in_progress", "failed", "unknown"]).default("under_review"),
   budgetedAmount: z.number().min(0).default(0),
   amountPaid: z.number().min(0).default(0),
@@ -41,11 +41,26 @@ const projectSubmitSchema = z.object({
   startDate: z.string().datetime().optional(),
   expectedCompletionDate: z.string().datetime().optional(),
   lastVerifiedAt: z.string().datetime().optional(),
-  sources: z.array(sourceSchema).min(1),
+  sources: z.array(sourceSchema).default([]),
   userId: z.string().optional(),
   pseudonym: z.string().optional(),
   password: z.string().min(8).optional(),
 });
+
+const textOr = (value: string | undefined, fallback: string) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+};
+
+const compactSources = (sources: z.infer<typeof sourceSchema>[]) =>
+  sources
+    .map((source) => ({
+      title: textOr(source.title, source.url ? "Submitted source" : ""),
+      url: source.url?.trim() ?? "",
+      description: source.description?.trim() || undefined,
+      type: textOr(source.type, "Source"),
+    }))
+    .filter((source) => source.title || source.url);
 
 const toPositiveInt = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
@@ -111,8 +126,14 @@ projectsRouter.post("/", publicSubmissionRateLimitMiddleware, validateBody(proje
   });
   await touchUserActivity(user._id.toString());
 
+  const fallbackText = textOr(body.details, textOr(body.description, "Public project tip submitted for review."));
   const project = await StalledProjectModel.create({
     ...body,
+    name: textOr(body.name, fallbackText.slice(0, 90)),
+    description: textOr(body.description, fallbackText.slice(0, 500)),
+    sector: textOr(body.sector, "Unknown"),
+    imageUrl: body.imageUrl?.trim() ?? "",
+    sources: compactSources(body.sources),
     submittedById: user._id,
     submittedPseudonym: user.pseudonym,
     moderationStatus: "submitted",

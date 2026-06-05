@@ -20,7 +20,7 @@ const ArticleSchema = new Schema(
     excerpt: { type: String, required: true, maxlength: 5000 },
     content: { type: String, required: true },
     keyFinding: { type: String, required: false, maxlength: 500 },
-    featuredImage: { type: String, required: true },
+    featuredImage: { type: String, required: false, default: "" },
     images: { type: [String], required: true, default: [] },
     category: { type: String, required: true, index: true },
     subCategory: { type: String, required: false },
@@ -28,10 +28,7 @@ const ArticleSchema = new Schema(
     sources: {
       type: [SourceSchema],
       required: true,
-      validate: {
-        validator: (sources: unknown[]) => Array.isArray(sources) && sources.length > 0,
-        message: "At least one source is required.",
-      },
+      default: [],
     },
     submittedById: { type: Schema.Types.ObjectId, required: false, ref: "User" },
     submittedPseudonym: { type: String, required: true, default: "Kenya Corruption Archives Desk" },

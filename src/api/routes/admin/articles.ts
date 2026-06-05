@@ -6,26 +6,26 @@ import { reviewArticle } from "../../../services/articleService";
 import { logAdminAction } from "../../../services/adminAuditService";
 
 const sourceSchema = z.object({
-  title: z.string().min(2),
-  url: z.string().url(),
+  title: z.string().optional().default(""),
+  url: z.string().optional().default(""),
   description: z.string().optional(),
-  type: z.string().min(2),
+  type: z.string().optional().default("Source"),
 });
 
 const articleSchema = z.object({
-  title: z.string().min(5),
+  title: z.string().max(220).optional().or(z.literal("")),
   slug: z.string().optional(),
   subtitle: z.string().optional(),
   author: z.string().optional(),
-  excerpt: z.string().min(10).max(5000),
-  content: z.string().min(20).max(1_000_000),
+  excerpt: z.string().max(5000).optional().or(z.literal("")),
+  content: z.string().max(1_000_000).optional().or(z.literal("")),
   keyFinding: z.string().optional(),
-  featuredImage: z.string().url(),
-  images: z.array(z.string().url()).default([]),
-  category: z.string().min(2),
+  featuredImage: z.string().optional().or(z.literal("")),
+  images: z.array(z.string()).default([]),
+  category: z.string().optional().default("Allegations"),
   subCategory: z.string().optional(),
   tags: z.array(z.string()).default([]),
-  sources: z.array(sourceSchema).min(1),
+  sources: z.array(sourceSchema).default([]),
   status: z.enum(["draft", "submitted", "under_review", "approved", "rejected", "published", "archived"]).default("draft"),
   publishedAt: z.string().datetime().optional(),
   year: z.number().int().min(1900).max(2100).optional(),
@@ -64,6 +64,35 @@ const normalizeArticleDates = <T extends { publishedAt?: string; year?: number }
   };
 };
 
+const textOr = (value: string | undefined, fallback: string) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+};
+
+const normalizeArticlePayload = (body: z.infer<typeof articlePatchSchema>) => {
+  const fallbackText = textOr(body.content, textOr(body.excerpt, "Draft record awaiting editorial completion."));
+  return normalizeArticleDates({
+    ...body,
+    title: body.title === undefined ? undefined : textOr(body.title, fallbackText.slice(0, 90)),
+    excerpt: body.excerpt === undefined ? undefined : textOr(body.excerpt, fallbackText.slice(0, 500)),
+    content: body.content === undefined ? undefined : textOr(body.content, fallbackText),
+    featuredImage: body.featuredImage?.trim() ?? body.featuredImage,
+    category: body.category === undefined ? undefined : textOr(body.category, "Allegations"),
+    sources: body.sources?.filter((source) => source.title || source.url) ?? body.sources,
+  });
+};
+
+const normalizeNewArticlePayload = (body: z.infer<typeof articleSchema>) =>
+  normalizeArticlePayload({
+    ...body,
+    title: body.title ?? "",
+    excerpt: body.excerpt ?? "",
+    content: body.content ?? "",
+    featuredImage: body.featuredImage ?? "",
+    category: body.category ?? "Allegations",
+    sources: body.sources ?? [],
+  });
+
 export const adminArticlesRouter = new Hono();
 
 adminArticlesRouter.get("/", async (c) => {
@@ -82,7 +111,7 @@ adminArticlesRouter.get("/:articleId", async (c) => {
 adminArticlesRouter.post("/", validateBody(articleSchema), async (c) => {
   const body = c.get("validatedBody") as z.infer<typeof articleSchema>;
   const article = await ArticleModel.create({
-    ...normalizeArticleDates(body),
+    ...normalizeNewArticlePayload(body),
     submittedPseudonym: "Kenya Corruption Archives Desk",
     views: 0,
     likes: 0,
@@ -97,7 +126,7 @@ adminArticlesRouter.patch("/:articleId", validateBody(articlePatchSchema), async
   const body = c.get("validatedBody") as z.infer<typeof articlePatchSchema>;
   const article = await ArticleModel.findByIdAndUpdate(
     c.req.param("articleId"),
-    normalizeArticleDates(body),
+    normalizeArticlePayload(body),
     { new: true, runValidators: true }
   );
   if (!article) return c.json({ error: "Not found" }, 404);

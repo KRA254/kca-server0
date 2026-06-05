@@ -15,24 +15,24 @@ import {
 import { serializeArticle } from "../../services/serializers";
 
 const sourceSchema = z.object({
-  title: z.string().min(2),
-  url: z.string().url(),
+  title: z.string().optional().default(""),
+  url: z.string().optional().default(""),
   description: z.string().optional(),
-  type: z.string().min(2),
+  type: z.string().optional().default("Source"),
 });
 
 const articleSubmitSchema = z.object({
-  title: z.string().min(5),
+  title: z.string().max(220).optional().or(z.literal("")),
   subtitle: z.string().optional(),
-  excerpt: z.string().min(20).max(5000),
-  content: z.string().min(200).max(1_000_000),
+  excerpt: z.string().max(5000).optional().or(z.literal("")),
+  content: z.string().max(1_000_000).optional().or(z.literal("")),
   keyFinding: z.string().optional(),
-  featuredImage: z.string().url(),
-  images: z.array(z.string().url()).default([]),
-  category: z.string().min(2),
+  featuredImage: z.string().optional().or(z.literal("")),
+  images: z.array(z.string()).default([]),
+  category: z.string().optional().default("Allegations"),
   subCategory: z.string().optional(),
   tags: z.array(z.string()).default([]),
-  sources: z.array(sourceSchema).min(1),
+  sources: z.array(sourceSchema).default([]),
   year: z.number().int().min(1900).max(2100).optional(),
   isBreaking: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
@@ -41,6 +41,21 @@ const articleSubmitSchema = z.object({
   pseudonym: z.string().optional(),
   password: z.string().min(8).optional(),
 });
+
+const textOr = (value: string | undefined, fallback: string) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : fallback;
+};
+
+const compactSources = (sources: z.infer<typeof sourceSchema>[]) =>
+  sources
+    .map((source) => ({
+      title: textOr(source.title, source.url ? "Submitted source" : ""),
+      url: source.url?.trim() ?? "",
+      description: source.description?.trim() || undefined,
+      type: textOr(source.type, "Source"),
+    }))
+    .filter((source) => source.title || source.url);
 
 const toPositiveInt = (value: string | undefined, fallback: number) => {
   const parsed = Number(value);
@@ -130,18 +145,23 @@ articlesRouter.post("/", publicSubmissionRateLimitMiddleware, validateBody(artic
   });
   await touchUserActivity(user._id.toString());
 
+  const fallbackText = textOr(body.content, textOr(body.excerpt, "Public tip submitted for editorial review."));
+  const title = textOr(body.title, fallbackText.slice(0, 90));
+  const excerpt = textOr(body.excerpt, fallbackText.slice(0, 500));
+  const content = textOr(body.content, excerpt);
+
   const article = await submitArticle({
-    title: body.title,
+    title,
     subtitle: body.subtitle,
-    excerpt: body.excerpt,
-    content: body.content,
+    excerpt,
+    content,
     keyFinding: body.keyFinding,
-    featuredImage: body.featuredImage,
+    featuredImage: body.featuredImage?.trim() ?? "",
     images: body.images,
-    category: body.category,
+    category: textOr(body.category, "Allegations"),
     subCategory: body.subCategory,
     tags: body.tags,
-    sources: body.sources,
+    sources: compactSources(body.sources),
     year: body.year,
     submittedById: user._id,
     submittedPseudonym: user.pseudonym,
